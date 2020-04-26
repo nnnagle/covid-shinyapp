@@ -5,6 +5,9 @@ server <- function(input, output) {
   library(sf)
   
   load('results.RData')
+  rm(geodf)
+  load('counties_sf.RData')
+  geodf <- counties_sf
   out_df <- out_df %>%
     mutate(rate = lambda_q50*10000) %>%
     mutate(rate_c = cut(rate, 
@@ -51,9 +54,12 @@ server <- function(input, output) {
                                   filter(date == input$DateSelect)),
            aes = aes()) +
       geom_sf(aes(fill=rate_c), color=NA) + 
-      scale_fill_brewer('Rate') +
-      geom_sf(data=state_geo, mapping=aes(fill=NA), size=.2) +
+      scale_fill_brewer('Rate', palette = 'YlOrRd', na.value='grey80') +
+      #scale_fill_manual('Rate', values = scales::brewer_pal(palette='YlOrRd')(6), na.value='grey') +
+      geom_sf(data=state_geo, fill=NA, size=.2,inherit.aes = TRUE) +
       theme( 
+        panel.background = element_rect(fill = "#ffffff", colour = "#ffffff",
+                                        size = 2, linetype = "solid"),
         axis.text = ggplot2::element_blank(),
         axis.ticks = ggplot2::element_blank(),
         axis.title = ggplot2::element_blank(),
