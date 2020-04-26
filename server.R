@@ -3,6 +3,7 @@ server <- function(input, output) {
   library(tidyverse)
   library(ggplot2)
   library(sf)
+  library(shinyWidgets)
   
   load('results.RData')
   rm(geodf)
@@ -12,7 +13,7 @@ server <- function(input, output) {
     mutate(rate = lambda_q50*10000) %>%
     mutate(rate_c = cut(rate, 
                         breaks=c(-Inf, .1, .3, 1, 3, 10, Inf),
-                        labels = c('< .1', '.1-.3', '.3 - 1', '1-3', '3-10', '>10' )))
+                        labels = c('< .1', '.1-.3', '.3-1', '1-3', '3-10', '>10' )))
   
   slope_df <- out_df %>%
     group_by(state_name, county_name) %>%
@@ -108,6 +109,13 @@ server <- function(input, output) {
     plt 
   },
   height = 200)
+  
+  output$table <- renderTable({
+    df <- slope_df %>%
+      filter(date== input$DateSelect)
+    tab <- table(`growth in last week`=df$growth_c,`rate (per 10,000 persons)`=df$rate_c)
+    as.data.frame.matrix(tab)
+  }, rownames = TRUE, colnames = TRUE)
   
   output$info <- renderPrint({
     df <- slope_df %>%

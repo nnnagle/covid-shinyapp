@@ -11,6 +11,7 @@ ui <- fluidPage(
     column(3,style = "background-color:#e0e0e0",
            "sidebar",
            wellPanel(
+             shinyWidgets::setSliderColor(c("#517c96"), c(1)),
              sliderInput("DateSelect",
                          "Date:",
                          min = as.Date("2020-03-01","%Y-%m-%d"),
@@ -39,7 +40,9 @@ ui <- fluidPage(
                                  hover = hoverOpts(id = "tsHover", delayType = "throttle")),
                       width=11
                     )),
-             column(6,verbatimTextOutput("info") )
+             column(6,
+                    "growth rate over previous week by number of cases",
+                    tableOutput("table") )
            ),
   ) )
   ),
