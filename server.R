@@ -1,0 +1,104 @@
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  library(tidyverse)
+  library(ggplot2)
+  library(sf)
+  library(ggiraph)
+  
+  load('results_2020-04-23.RData')
+  out_df <- out_df %>%
+    mutate(rate = lambda_q50*10000) %>%
+    mutate(rate_c = cut(rate, 
+                        breaks=c(-Inf, .1, .3, 1, 3, 10, Inf),
+                        labels = c('< .1', '.1-.3', '.3 - 1', '1-3', '3-10', '>10' )))
+  
+  
+  ##############################################
+  # Create a state_boundary layer for reference
+  state_geo <- out_df %>%
+    filter(date == date[1]) %>%
+    group_by(state_fips, state_name) %>%
+    summarize()
+  
+  state_names <- out_df %>% st_drop_geometry() %>% select(state_name) %>% unique() %>% arrange(state_name) %>% pull(state_name)
+  state_list <- as.list(1:length(state_names))
+  names(state_list) <- state_names
+  
+  #Dynamic County Selector
+  output$countyUI <- renderUI({
+    county_names <- out_df %>% st_drop_geometry() %>%
+      select(state_name, county_name) %>%
+      filter(state_name == input$state) %>%
+      unique() %>%
+      arrange(county_name) %>%
+      pull(county_name)
+    selectInput('county',
+                label='County',
+                choices=county_names,
+                multiple = FALSE)
+  })
+  
+  output$usPlot <- renderPlot({
+    ggobj <- ggplot(data = out_df %>%
+             filter(date == input$DateSelect),
+           aes = aes()) +
+      geom_sf(aes(fill=rate_c), color=NA) + 
+      scale_fill_brewer('Rate') +
+      geom_sf(data=state_geo, mapping=aes(fill=NA), size=.2) +
+      theme( 
+        axis.text = ggplot2::element_blank(),
+        axis.ticks = ggplot2::element_blank(),
+        axis.title = ggplot2::element_blank(),
+        panel.grid = ggplot2::element_blank(),
+        axis.line = ggplot2::element_blank())
+   ggobj 
+    
+  })
+  
+  tsPlotData <- reactive({
+    data = out_df %>%
+      st_drop_geometry() %>%
+      filter(state_name== input$state)})
+  
+  tsHoverData <- reactive({
+    data = nearPoints(tsPlotData(), input$tsHover, maxpoints = 1)
+    if(is.null(nrow(data))) return(NULL) else return(data)
+  })
+  
+  tsHighlightData <- reactive({
+    data = tsPlotData() %>%
+      filter(county_name %in% input$county)
+  })
+  
+  output$tsPlot <- renderPlot({
+    if(input$plot_type=='Compare'){
+      plt <- ggplot(data = tsPlotData(),
+                    mapping = aes(x=date, y=rate,group=county_name))+
+        geom_line(aes(group=county_name), alpha=.2) + 
+        geom_vline(xintercept=input$DateSelect)
+      if(nrow(tsHighlightData()>0)){
+        plt <- plt + geom_line(data=tsHighlightData(), 
+                               aes(group='county_name'))
+      }
+      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10()}
+    } else{
+      plt <- ggplot(data=tsHighlightData(),
+                    mapping = aes(x=date)) +
+        geom_line(mapping=aes(y=fudge*lambda_q50*acs_total_pop_e)) +
+        geom_ribbon(mapping=aes(ymax=fudge*lambda_q85*acs_total_pop_e,
+                                ymin=fudge*lambda_q15*acs_total_pop_e),
+                    alpha=.25, color=NA) +
+        geom_point(mapping = aes(y=new_cases_mdl+.01), color='red')+
+        labs(y='New Cases')
+      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10()}
+    }
+    plt 
+  },
+  height = 200, width=600)
+  
+  output$info <- renderPrint({
+    tsHighlightData()
+    #print(input$mapClick)
+    #nearPoints(tsPlotData(), input$tsClick, maxpoints = 1)
+  })
+}
