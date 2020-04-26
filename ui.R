@@ -24,12 +24,14 @@ ui <- fluidPage(
                width=11
              )),
            fluidRow(
-             mainPanel(
-               plotOutput("tsPlot", 
-                          click = "tsClick", 
-                          hover = hoverOpts(id = "tsHover", delayType = "throttle")),
-               width=11
-           )),
-           fluidRow(verbatimTextOutput("info"))
+             column(6,
+                    mainPanel(
+                      plotOutput("tsPlot", 
+                                 click = "tsClick", 
+                                 hover = hoverOpts(id = "tsHover", delayType = "throttle")),
+                      width=11
+                    )),
+             column(6,verbatimTextOutput("info") )
+           ),
   ) )
 )

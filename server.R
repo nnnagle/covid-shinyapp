@@ -3,30 +3,37 @@ server <- function(input, output) {
   library(tidyverse)
   library(ggplot2)
   library(sf)
-  library(ggiraph)
   
-  load('results_2020-04-23.RData')
+  load('results.RData')
   out_df <- out_df %>%
     mutate(rate = lambda_q50*10000) %>%
     mutate(rate_c = cut(rate, 
                         breaks=c(-Inf, .1, .3, 1, 3, 10, Inf),
                         labels = c('< .1', '.1-.3', '.3 - 1', '1-3', '3-10', '>10' )))
   
+  slope_df <- out_df %>%
+    group_by(state_name, county_name) %>%
+    arrange(date) %>%
+    mutate(growth = (lambda_q50-lag(lambda_q50,7))/lag(lambda_q50,7)) %>%
+    mutate(growth_c = cut(growth,
+                          breaks=c(-Inf,-.5, -.1,.1,.5,1,Inf),
+                          labels=c('More than Halved', "-50% to -10%", "-10% - 10%", "10-50", "50% - 100%", "More than Doubled")))
+  
   
   ##############################################
   # Create a state_boundary layer for reference
-  state_geo <- out_df %>%
-    filter(date == date[1]) %>%
+  state_geo <- geodf %>%
+    left_join(out_df %>% filter(date==date[[1]]) %>% select(geoid, state_fips, state_name)) %>%
     group_by(state_fips, state_name) %>%
     summarize()
   
-  state_names <- out_df %>% st_drop_geometry() %>% select(state_name) %>% unique() %>% arrange(state_name) %>% pull(state_name)
+  state_names <- out_df %>% select(state_name) %>% unique() %>% arrange(state_name) %>% pull(state_name)
   state_list <- as.list(1:length(state_names))
   names(state_list) <- state_names
   
   #Dynamic County Selector
   output$countyUI <- renderUI({
-    county_names <- out_df %>% st_drop_geometry() %>%
+    county_names <- out_df %>%
       select(state_name, county_name) %>%
       filter(state_name == input$state) %>%
       unique() %>%
@@ -39,8 +46,9 @@ server <- function(input, output) {
   })
   
   output$usPlot <- renderPlot({
-    ggobj <- ggplot(data = out_df %>%
-             filter(date == input$DateSelect),
+    ggobj <- ggplot(data = geodf %>%
+                      left_join(out_df %>%
+                                  filter(date == input$DateSelect)),
            aes = aes()) +
       geom_sf(aes(fill=rate_c), color=NA) + 
       scale_fill_brewer('Rate') +
@@ -57,7 +65,6 @@ server <- function(input, output) {
   
   tsPlotData <- reactive({
     data = out_df %>%
-      st_drop_geometry() %>%
       filter(state_name== input$state)})
   
   tsHoverData <- reactive({
@@ -94,10 +101,14 @@ server <- function(input, output) {
     }
     plt 
   },
-  height = 200, width=600)
+  height = 200)
   
   output$info <- renderPrint({
-    tsHighlightData()
+    df <- slope_df %>%
+      filter(date== input$DateSelect)
+    table(`growth in last week`=df$growth_c,`rate (per 10,000 persons)`=df$rate_c)
+    
+   # tsHighlightData()
     #print(input$mapClick)
     #nearPoints(tsPlotData(), input$tsClick, maxpoints = 1)
   })
