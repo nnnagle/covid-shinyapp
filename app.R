@@ -40,7 +40,7 @@ state_geo <- geodf %>%
   summarize()
 
 
-source('ui.r')
-source('server.r')
+source('covid_ui.r')
+source('covid_server.r')
 
 shinyApp(ui, server)
