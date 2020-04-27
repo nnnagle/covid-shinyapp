@@ -44,7 +44,7 @@ ui <- fluidPage(
                       width=11
                     )),
              column(6,
-                    "growth rate over previous week by number of cases",
+                    "Growth Rate over previous week by Number of Cases",
                     tableOutput("table"))
            ),
     verbatimTextOutput("info")

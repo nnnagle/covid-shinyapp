@@ -28,7 +28,7 @@ server <- function(input, output, session) {
                           LAT = x$lat),
                    coords = c("LONG", "LAT"),
                    crs = 4326)
-                 selection <- st_join(pt, geodf)
+                 selection <- suppressMessages(st_join(pt, geodf))
                  if(selection$state_name[1]!= input$state){
                    updateSelectInput(session,
                                      inputId='county', 
@@ -46,7 +46,7 @@ server <- function(input, output, session) {
                 LAT = x$lat),
          coords = c("LONG", "LAT"),
          crs = 4326)
-      selection <- st_join(pt, geodf)
+      selection <- suppressMessages(st_join(pt, geodf))
       #st_name <- selection$state_name[1]
       #shinyjs::runjs("Shiny.setInputValue('state','Tennessee')")
       updateSelectInput(session,
@@ -205,7 +205,7 @@ server <- function(input, output, session) {
                LAT = input$usPlot_shape_click$lat),
         coords = c("LONG", "LAT"),
         crs = 4326)
-      selection <- st_join(pt, geodf)
+      selection <- suppressMessages(st_join(pt, geodf))
       print(selection)
     }
     #print(selection$state_name[1])
