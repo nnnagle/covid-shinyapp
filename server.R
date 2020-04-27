@@ -1,55 +1,129 @@
+
 # Define server logic required to draw a histogram
-server <- function(input, output) {
+server <- function(input, output, session) {
   library(tidyverse)
   library(ggplot2)
+  library(leaflet)
   library(sf)
   library(shinyWidgets)
   
-  load('results.RData')
-  rm(geodf)
-  load('counties_sf.RData')
-  geodf <- counties_sf
-  out_df <- out_df %>%
-    mutate(rate = lambda_q50*10000) %>%
-    mutate(rate_c = cut(rate, 
-                        breaks=c(-Inf, .1, .3, 1, 3, 10, Inf),
-                        labels = c('< .1', '.1-.3', '.3-1', '1-3', '3-10', '>10' )))
   
-  slope_df <- out_df %>%
-    group_by(state_name, county_name) %>%
-    arrange(date) %>%
-    mutate(growth = (lambda_q50-lag(lambda_q50,7))/lag(lambda_q50,7)) %>%
-    mutate(growth_c = cut(growth,
-                          breaks=c(-Inf,-.5, -.1,.1,.5,1,Inf),
-                          labels=c('More than Halved', "-50% to -10%", "-10% - 10%", "10-50", "50% - 100%", "More than Doubled")))
+  # Change county when state is changed
+  observeEvent(input$state,{
+               county_names <- out_df %>%
+                 select(state_name, county_name) %>%
+                 filter(state_name == input$state) %>%
+                 unique() %>%
+                 arrange(county_name) %>%
+                 pull(county_name)
+               # Check if mouseclick is same as state (don't update if so)
+               x <- input$usPlot_shape_click
+               if(is.null(x)){
+                 updateSelectInput(session,
+                                   inputId='county', 
+                                   choices = county_names )
+               } else{
+                 pt <- st_as_sf(
+                   tibble(LONG = x$lng,
+                          LAT = x$lat),
+                   coords = c("LONG", "LAT"),
+                   crs = 4326)
+                 selection <- st_join(pt, geodf)
+                 if(selection$state_name[1]!= input$state){
+                   updateSelectInput(session,
+                                     inputId='county', 
+                                     choices = county_names )
+                 }
+               }
+               })
   
-  
-  ##############################################
-  # Create a state_boundary layer for reference
-  state_geo <- geodf %>%
-    left_join(out_df %>% filter(date==date[[1]]) %>% select(geoid, state_fips, state_name)) %>%
-    group_by(state_fips, state_name) %>%
-    summarize()
-  
-  state_names <- out_df %>% select(state_name) %>% unique() %>% arrange(state_name) %>% pull(state_name)
-  state_list <- as.list(1:length(state_names))
-  names(state_list) <- state_names
-  
-  #Dynamic County Selector
-  output$countyUI <- renderUI({
-    county_names <- out_df %>%
-      select(state_name, county_name) %>%
-      filter(state_name == input$state) %>%
-      unique() %>%
-      arrange(county_name) %>%
-      pull(county_name)
-    selectInput('county',
-                label='County',
-                choices=county_names,
-                multiple = FALSE)
+  # Change state and county on map click
+  observeEvent(input$usPlot_shape_click, {
+    x <- input$usPlot_shape_click
+    if(!is.null(x)){
+       pt <- st_as_sf(
+         tibble(LONG = x$lng,
+                LAT = x$lat),
+         coords = c("LONG", "LAT"),
+         crs = 4326)
+      selection <- st_join(pt, geodf)
+      #st_name <- selection$state_name[1]
+      #shinyjs::runjs("Shiny.setInputValue('state','Tennessee')")
+      updateSelectInput(session,
+                        inputId='state', 
+                        selected = selection$state_name[1] )
+      county_names <- out_df %>%
+        select(state_name, county_name) %>%
+        filter(state_name == selection$state_name[1]) %>%
+        unique() %>%
+        arrange(county_name) %>%
+        pull(county_name)
+      updateSelectInput(session,
+                        inputId='county', 
+                        choices = county_names,
+                        selected = selection$county_name[1] )
+    }
+    
   })
   
-  output$usPlot <- renderPlot({
+  epsg2163 <- leafletCRS(
+    crsClass = "L.Proj.CRS",
+    code = "EPSG:2163",
+    proj4def = "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs",
+    resolutions = 2^(14:10))
+  
+  staticData <- geodf %>% left_join(out_df %>%
+                                      filter(date == date[1]))
+  
+  output$usPlot <- renderLeaflet({
+    #pal <- colorNumeric("Blues", domain = mapData()$acs_total_pop_e)
+    pal <- colorFactor(
+      palette = scales::brewer_pal(palette='YlOrRd')(nlevels(out_df$rate_c)),
+      levels=levels(out_df$rate_c))
+    leaflet(
+      staticData,  
+      options = leafletOptions(crs = epsg2163)
+      ) %>%
+    # %>%
+    #   addPolygons(
+    #     data=mapData(),
+    #     weight = 0, color = "#444444", opacity = 1,
+    #     fillColor = ~pal(rate_c), fillOpacity = 0.7, smoothFactor = 0.5,
+    #     label = ~paste(rate_c),
+    #     labelOptions = labelOptions(direction = "auto"),
+    #     highlightOptions = highlightOptions(
+    #       weight = 1,
+    #       fillOpacity = 0.7,
+    #       bringToFront = FALSE)) %>%
+    addPolygons(
+      data = state_geo,
+      weight=1, color = "#444444", opacity = 1,
+      fill=FALSE)
+  })
+  
+  mapData <- reactive({geodf %>%
+      left_join(out_df %>%
+                  filter(date == input$DateSelect))})
+  
+  observe({
+    pal <- colorFactor(
+      palette = scales::brewer_pal(palette='YlOrRd')(nlevels(out_df$rate_c)),
+      levels=levels(out_df$rate_c))
+    leafletProxy("usPlot", data=mapData()) %>%
+      clearShapes() %>%
+      addPolygons(
+        data=mapData(),
+        weight = 0, color = "#444444", opacity = 1,
+        fillColor = ~pal(rate_c), fillOpacity = 0.7, smoothFactor = 0.5,
+        label = ~paste(rate_c),
+        labelOptions = labelOptions(direction = "auto")) %>%
+      addPolygons(
+        data = state_geo,
+        weight=1, color = "#444444", opacity = 1,
+        fill=FALSE)
+  })
+  
+  output$usPlot2 <- renderPlot({
     ggobj <- ggplot(data = geodf %>%
                       left_join(out_df %>%
                                   filter(date == input$DateSelect)),
@@ -118,10 +192,23 @@ server <- function(input, output) {
   }, rownames = TRUE, colnames = TRUE)
   
   output$info <- renderPrint({
-    df <- slope_df %>%
-      filter(date== input$DateSelect)
-    table(`growth in last week`=df$growth_c,`rate (per 10,000 persons)`=df$rate_c)
-    
+    #df <- slope_df %>%
+    #  filter(date== input$DateSelect)
+    #table(`growth in last week`=df$growth_c,`rate (per 10,000 persons)`=df$rate_c)
+    print(input$usPlot_shape_click)
+    print(input$usPlot_shape_click$lng)
+    print(is.null(input$usPlot_shape_click))
+    print(input$state)
+    if(!is.null(input$usPlot_shape_click)){
+      pt <- st_as_sf(
+        tibble(LONG = input$usPlot_shape_click$lng,
+               LAT = input$usPlot_shape_click$lat),
+        coords = c("LONG", "LAT"),
+        crs = 4326)
+      selection <- st_join(pt, geodf)
+      print(selection)
+    }
+    #print(selection$state_name[1])
    # tsHighlightData()
     #print(input$mapClick)
     #nearPoints(tsPlotData(), input$tsClick, maxpoints = 1)

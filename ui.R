@@ -18,7 +18,9 @@ ui <- fluidPage(
                          max = as.Date("2020-04-20","%Y-%m-%d"),
                          value=as.Date("2020-04-20"),timeFormat="%Y-%m-%d"),
              selectInput('state','State',state_names),
-             uiOutput("countyUI"),
+             selectInput('county','County',county_names),
+             #selectInput('county','County',c('1','2')),
+#             uiOutput("countyUI"),
              selectInput('y_scale','Scale Y-Axis',c('Continuous','Log 10')),
              selectInput('plot_type','Time Series Chart', c('Compare','Fit'))
            ),
@@ -29,7 +31,8 @@ ui <- fluidPage(
     column(9,style = "background-color:white;",
            fluidRow(
              mainPanel(
-               plotOutput("usPlot"),
+               leafletOutput("usPlot"),
+#               plotOutput("usPlot"),
                width=11
              )),
            fluidRow(
@@ -42,8 +45,9 @@ ui <- fluidPage(
                     )),
              column(6,
                     "growth rate over previous week by number of cases",
-                    tableOutput("table") )
+                    tableOutput("table"))
            ),
+    verbatimTextOutput("info")
   ) )
   ),
   tabPanel("About",fluid=TRUE,
