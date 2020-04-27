@@ -11,6 +11,7 @@ ui <- fluidPage(
     column(3,style = "background-color:#e0e0e0",
            "sidebar",
            wellPanel(
+             selectInput('layer', 'Map Layer', c('Modeled Count', 'Raw Count', 'Smoothed Count' )),
              shinyWidgets::setSliderColor(c("#517c96"), c(1)),
              sliderInput("DateSelect",
                          "Date:",
