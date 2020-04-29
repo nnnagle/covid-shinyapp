@@ -102,18 +102,26 @@ server <- function(input, output, session) {
   })
   
   ###################################3
-  # Update map data for date
+  # Update map data for date and input_layer
   mapData <- reactive({
     df <- geodf %>%
       left_join(out_df %>%
                   filter(date == input$DateSelect))
-    switch(input$layer,
-           "Modeled Count" = {df <- mutate(df, map_layer=rate_c)},
-           "Raw Count" = {df <- mutate(df, map_layer=count_c)},
-           "Smoothed Count" = {df <- mutate(df, map_layer=smooth_c)})
+    df <- switch(input$layer,
+           "Modeled Count" = {
+             mutate(df, fill_layer=rate_c, label_layer=round(rate,3))
+             },
+           "Raw Count" = {
+             mutate(df, fill_layer=count_c, label_layer=round(count_n,3))
+             },
+           "Smoothed Count" = {
+             mutate(df, fill_layer=smooth_c, label_layer=round(smooth_n,3))
+             })
     return(df)
   })
   
+  #####################################################
+  # observe (mostly mapData) to update map
   observe({
     pal <- colorFactor(
       palette = scales::brewer_pal(palette='YlOrRd')(nlevels(out_df$rate_c)),
@@ -123,8 +131,8 @@ server <- function(input, output, session) {
       addPolygons(
         data=mapData(),
         weight = 0, color = "#444444", opacity = 1,
-        fillColor = ~pal(map_layer), fillOpacity = 0.7, smoothFactor = 0.5,
-        label = ~paste(map_layer),
+        fillColor = ~pal(fill_layer), fillOpacity = 0.7, smoothFactor = 0.5,
+        label = ~paste(label_layer),
         labelOptions = labelOptions(direction = "auto")) %>%
       addPolygons(
         data = state_geo,

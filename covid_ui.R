@@ -1,3 +1,6 @@
+require(leaflet)
+require(shinyWidgets)
+
 ui <- fluidPage(
   
   # Application title
