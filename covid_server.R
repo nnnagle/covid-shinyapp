@@ -7,7 +7,6 @@ server <- function(input, output, session) {
   library(sf)
   library(shinyWidgets)
   
-  
   # Change county when state is changed
   observeEvent(input$state,{
                county_names <- out_df %>%
@@ -70,7 +69,7 @@ server <- function(input, output, session) {
     crsClass = "L.Proj.CRS",
     code = "EPSG:2163",
     proj4def = "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs",
-    resolutions = 2^(14:10))
+    resolutions = 2^(14:8))
   
   staticData <- geodf %>% left_join(out_df %>%
                                       filter(date == date[1]))
@@ -84,17 +83,6 @@ server <- function(input, output, session) {
       staticData,  
       options = leafletOptions(crs = epsg2163)
       ) %>%
-    # %>%
-    #   addPolygons(
-    #     data=mapData(),
-    #     weight = 0, color = "#444444", opacity = 1,
-    #     fillColor = ~pal(rate_c), fillOpacity = 0.7, smoothFactor = 0.5,
-    #     label = ~paste(rate_c),
-    #     labelOptions = labelOptions(direction = "auto"),
-    #     highlightOptions = highlightOptions(
-    #       weight = 1,
-    #       fillOpacity = 0.7,
-    #       bringToFront = FALSE)) %>%
     addPolygons(
       data = state_geo,
       weight=1, color = "#444444", opacity = 1,
@@ -109,13 +97,19 @@ server <- function(input, output, session) {
                   filter(date == input$DateSelect))
     df <- switch(input$layer,
            "Modeled Count" = {
-             mutate(df, fill_layer=rate_c, label_layer=round(rate,3))
+             mutate(df, 
+                    fill_layer=rate_c, 
+                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>rate</strong>: ", round(rate,3)))
              },
            "Raw Count" = {
-             mutate(df, fill_layer=count_c, label_layer=round(count_n,3))
+             mutate(df, 
+                    fill_layer=count_c, 
+                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>count</strong>: ", round(count_n,3))) 
              },
            "Smoothed Count" = {
-             mutate(df, fill_layer=smooth_c, label_layer=round(smooth_n,3))
+             mutate(df, 
+                    fill_layer=smooth_c, 
+                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>moving average</strong>: ", round(smooth_n,3))) 
              })
     return(df)
   })
@@ -128,23 +122,29 @@ server <- function(input, output, session) {
       levels=levels(out_df$rate_c))
     leafletProxy("usPlot", data=mapData()) %>%
       clearShapes() %>%
+      clearControls() %>%
       addPolygons(
         data=mapData(),
-        weight = 0, color = "#444444", opacity = 1,
-        fillColor = ~pal(fill_layer), fillOpacity = 0.7, smoothFactor = 0.5,
-        label = ~paste(label_layer),
+        weight = 0.2, color = "#c0c0c0", opacity = 1,
+        fillColor = ~pal(fill_layer), fillOpacity = 1.0, smoothFactor = 0.5,
+        label = lapply(mapData()$label_layer, HTML),
         labelOptions = labelOptions(direction = "auto")) %>%
       addPolygons(
         data = state_geo,
         weight=1, color = "#444444", opacity = 1,
-        fill=FALSE)
+        fill=FALSE) %>%
+      addLegend("bottomright", pal = pal, values = ~fill_layer,
+                title = "Count (per 10,000 people)",
+                opacity = 1
+      )
   })
   
   output$usPlot2 <- renderPlot({
     ggobj <- ggplot(data = geodf %>%
-                      left_join(out_df %>%
-                                  filter(date == input$DateSelect)),
-           aes = aes()) +
+                      left_join(
+                        out_df %>%
+                          filter(date == input$DateSelect)),
+                    aes = aes()) +
       geom_sf(aes(fill=rate_c), color=NA) + 
       scale_fill_brewer('Rate', palette = 'YlOrRd', na.value='grey80') +
       #scale_fill_manual('Rate', values = scales::brewer_pal(palette='YlOrRd')(6), na.value='grey') +
@@ -175,31 +175,40 @@ server <- function(input, output, session) {
       filter(county_name %in% input$county)
   })
   
+  #output$tsPlot <- renderSvgPanZoom({
   output$tsPlot <- renderPlot({
     if(input$plot_type=='Compare'){
       plt <- ggplot(data = tsPlotData(),
-                    mapping = aes(x=date, y=rate,group=county_name))+
-        geom_line(aes(group=county_name), alpha=.2) + 
-        geom_vline(xintercept=input$DateSelect)
+                    mapping = aes(x=date, y=rate, group=county_name))+
+        geom_line(aes(group=county_name), alpha=10/length(unique(tsPlotData()$county_name))) + 
+        geom_vline(xintercept=input$DateSelect) +
+        labs(title=paste0('All counties in ', input$state),
+             subtitle=paste0('Highlighted county: ', input$county))
       if(nrow(tsHighlightData()>0)){
         plt <- plt + geom_line(data=tsHighlightData(), 
                                aes(group='county_name'))
       }
-      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10()}
+      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10('Cases (per 10,0000 persons)')} else {
+        plt <- plt + scale_y_continuous('Cases (per 10,000 persons)')
+      }
     } else{
+      #browser()
       plt <- ggplot(data=tsHighlightData(),
                     mapping = aes(x=date)) +
-        geom_line(mapping=aes(y=fudge*lambda_q50*acs_total_pop_e)) +
-        geom_ribbon(mapping=aes(ymax=fudge*lambda_q85*acs_total_pop_e,
-                                ymin=fudge*lambda_q15*acs_total_pop_e),
+        geom_line(mapping=aes(y=fudge*(lambda_q50/1e6)*acs_total_pop_e)) +
+        geom_ribbon(mapping=aes(ymax=fudge*(lambda_q85/1e6)*acs_total_pop_e,
+                                ymin=fudge*(lambda_q15/1e6)*acs_total_pop_e),
                     alpha=.25, color=NA) +
         geom_point(mapping = aes(y=new_cases_mdl+.01), color='red')+
-        labs(y='New Cases')
-      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10()}
+        geom_vline(xintercept=input$DateSelect) +
+        labs(y='Cases', title=paste0('New Cases in ', input$county, ' County, ', input$state))
+      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10('New Cases')} else{
+        plt <- plt + scale_y_continuous('New Cases')
+      }
     }
-    plt 
-  },
-  height = 200)
+    plt
+    #svgPanZoom(plt, controlIconsEnabled = T)
+  }, height=300)
   
   output$table <- renderTable({
     df <- slope_df %>%

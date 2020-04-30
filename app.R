@@ -8,7 +8,6 @@ cat(file=stderr(), paste(packageVersion('rlang')), "\n")
 cat(file=stderr(), paste(.libPaths()), "\n")
 
 
-library(shiny)
 library(tidyverse)
 library(sf)
 
@@ -68,10 +67,12 @@ slope_df <- out_df %>%
 state_geo <- geodf %>%
   left_join(out_df %>% filter(date==date[[1]]) %>% select(geoid, state_fips, state_name)) %>%
   group_by(state_fips, state_name) %>%
-  sf:::summarise.sf()
+  summarise()
 
 
-source('covid_ui.R')
-source('covid_server.R')
+# Define the UI
+source('covid_ui.R', local=TRUE)
+source('covid_server.R', local=TRUE)
 
+# Return a Shiny app object
 shinyApp(ui = ui, server = server)

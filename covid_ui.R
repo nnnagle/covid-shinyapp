@@ -7,7 +7,8 @@ ui <- fluidPage(
   titlePanel(h1("COVID-19 Cases",
                 style='background-color:#517c96;
                        color: white;
-                       padding-left: 15px;')),
+                       padding-left: 15px;'),
+              windowTitle = 'COVID-19 Cases'),
   tabsetPanel(
   tabPanel("Explore", fluid=TRUE,
   fluidRow(
@@ -42,16 +43,17 @@ ui <- fluidPage(
            fluidRow(
              column(6,
                     mainPanel(
+                      #svgPanZoomOutput(outputId="tsPlot",
                       plotOutput("tsPlot", 
                                  click = "tsClick", 
-                                 hover = hoverOpts(id = "tsHover", delayType = "throttle")),
-                      width=11
+                                 hover = hoverOpts(id = "tsHover", delayType = "throttle"),
+                                 height='200px', width='100%')
                     )),
              column(6,
                     "Growth Rate over previous week by Number of Cases",
                     tableOutput("table"))
            ),
-    verbatimTextOutput("info")
+    #verbatimTextOutput("info")
   ) )
   ),
   tabPanel("About",fluid=TRUE,
