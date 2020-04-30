@@ -22,7 +22,7 @@ out_df2$geoid = as.factor(out_df2$geoid)
 out_df3 <- out_df2 %>% 
   mutate_at(
     vars(starts_with('lambda'),'fudge'), 
-    function(x){ as.integer(x*1e6)}
+    function(x){ as.integer(x*1e8)}
     ) %>%
   mutate_if(
     is.numeric, as.integer)

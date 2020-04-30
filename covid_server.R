@@ -195,9 +195,9 @@ server <- function(input, output, session) {
       #browser()
       plt <- ggplot(data=tsHighlightData(),
                     mapping = aes(x=date)) +
-        geom_line(mapping=aes(y=fudge*(lambda_q50/1e6)*acs_total_pop_e)) +
-        geom_ribbon(mapping=aes(ymax=fudge*(lambda_q85/1e6)*acs_total_pop_e,
-                                ymin=fudge*(lambda_q15/1e6)*acs_total_pop_e),
+        geom_line(mapping=aes(y=fudge*(lambda_q50/1e8)*acs_total_pop_e)) +
+        geom_ribbon(mapping=aes(ymax=fudge*(lambda_q85/1e8)*acs_total_pop_e,
+                                ymin=fudge*(lambda_q15/1e8)*acs_total_pop_e),
                     alpha=.25, color=NA) +
         geom_point(mapping = aes(y=new_cases_mdl+.01), color='red')+
         geom_vline(xintercept=input$DateSelect) +

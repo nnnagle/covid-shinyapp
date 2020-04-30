@@ -39,7 +39,8 @@ out_df <- out_df %>%
   ungroup()
            
 out_df <- out_df %>%
-  mutate(rate = lambda_q50*10000) %>%
+  mutate(fudge = fudge/1e8) %>%
+  mutate(rate = fudge*lambda_q50*(10000/1e8)) %>%
   mutate(rate_c = cut(rate, 
                       breaks=c(-Inf, .1, .3, 1, 3, 10, Inf),
                       labels = c('< .1', '.1-.3', '.3-1', '1-3', '3-10', '>10' ))) %>%
