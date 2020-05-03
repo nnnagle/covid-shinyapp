@@ -177,7 +177,7 @@ server <- function(input, output, session) {
   
   #output$tsPlot <- renderSvgPanZoom({
   output$tsPlot <- renderPlot({
-    if(input$plot_type=='Compare'){
+    if(input$plot_type==tsPlot_type_label[[1]]){
       plt <- ggplot(data = tsPlotData(),
                     mapping = aes(x=date, y=rate, group=county_name))+
         geom_line(aes(group=county_name), alpha=10/length(unique(tsPlotData()$county_name))) + 
@@ -195,9 +195,9 @@ server <- function(input, output, session) {
       #browser()
       plt <- ggplot(data=tsHighlightData(),
                     mapping = aes(x=date)) +
-        geom_line(mapping=aes(y=fudge*(lambda_q50/1e8)*acs_total_pop_e)) +
-        geom_ribbon(mapping=aes(ymax=fudge*(lambda_q85/1e8)*acs_total_pop_e,
-                                ymin=fudge*(lambda_q15/1e8)*acs_total_pop_e),
+        geom_line(mapping=aes(y=(lambda_q50/1e8)*pop)) +
+        geom_ribbon(mapping=aes(ymax=(lambda_q85/1e8)*pop,
+                                ymin=(lambda_q15/1e8)*pop),
                     alpha=.25, color=NA) +
         geom_point(mapping = aes(y=new_cases_mdl+.01), color='red')+
         geom_vline(xintercept=input$DateSelect) +
