@@ -14,7 +14,7 @@ ui <- fluidPage(
   fluidRow(
     column(3,style = "background-color:#e0e0e0",
            wellPanel(
-             selectInput('layer', 'Map Layer', c('Modeled Count', 'Raw Count', 'Smoothed Count' )),
+             selectInput('layer', 'Map Layer', c('Modeled Count', 'Raw Count', 'Smoothed Count', 'Growth Rate' )),
              shinyWidgets::setSliderColor(c("#517c96"), c(1)),
              sliderInput("DateSelect",
                          "Date:",
@@ -53,7 +53,7 @@ ui <- fluidPage(
                                  height='200px', width='100%')
                     )),
              column(6,
-                    "Growth Rate over previous week by Number of Cases",
+                    textOutput("tableText"),
                     tableOutput("table"))
            ),
     #verbatimTextOutput("info")

@@ -6,11 +6,11 @@ server <- function(input, output, session) {
   library(leaflet)
   library(sf)
   library(shinyWidgets)
+  #browser()
   
   # Change county when state is changed
   observeEvent(input$state,{
                county_names <- out_df %>%
-                 select(state_name, county_name) %>%
                  filter(state_name == input$state) %>%
                  unique() %>%
                  arrange(county_name) %>%
@@ -79,6 +79,10 @@ server <- function(input, output, session) {
     pal <- colorFactor(
       palette = scales::brewer_pal(palette='YlOrRd')(nlevels(out_df$rate_c)),
       levels=levels(out_df$rate_c))
+    pal2 <- colorFactor(
+      palette = scales::brewer_pal(palette='RdYlBu', direction=-1)(nlevels(out_df$growth_c)),
+      levels=levels(out_df$growth_c)
+    )
     leaflet(
       staticData,  
       options = leafletOptions(crs = epsg2163)
@@ -110,16 +114,29 @@ server <- function(input, output, session) {
              mutate(df, 
                     fill_layer=smooth_c, 
                     label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>moving average</strong>: ", round(smooth_n,3))) 
-             })
+             },
+           "Growth Rate" = {
+             mutate(df,
+                    fill_layer = growth_c,
+                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>growth rate</strong>: ", round(100*(growth),1)))
+           })
     return(df)
   })
   
   #####################################################
   # observe (mostly mapData) to update map
   observe({
+    if(input$layer=="Growth Rate"){ 
+      pal <- colorFactor(
+        palette = scales::brewer_pal(palette='RdYlBu', direction=-1)(nlevels(out_df$growth_c)+1)[-1],
+        levels=levels(out_df$growth_c))
+      leg_title <- "Growth Rate (%)" 
+      } else{
     pal <- colorFactor(
       palette = scales::brewer_pal(palette='YlOrRd')(nlevels(out_df$rate_c)),
       levels=levels(out_df$rate_c))
+    leg_title = "Count (per 10,000 people)"
+    }
     leafletProxy("usPlot", data=mapData()) %>%
       clearShapes() %>%
       clearControls() %>%
@@ -134,7 +151,7 @@ server <- function(input, output, session) {
         weight=1, color = "#444444", opacity = 1,
         fill=FALSE) %>%
       addLegend("bottomright", pal = pal, values = ~fill_layer,
-                title = "Count (per 10,000 people)",
+                title = leg_title,
                 opacity = 1
       )
   })
@@ -177,7 +194,7 @@ server <- function(input, output, session) {
   
   #output$tsPlot <- renderSvgPanZoom({
   output$tsPlot <- renderPlot({
-    if(input$plot_type==tsPlot_type_label[[1]]){
+    if(input$plot_type==tsPlot_type_label[[1]]){ # comparison plot
       plt <- ggplot(data = tsPlotData(),
                     mapping = aes(x=date, y=rate, group=county_name))+
         geom_line(aes(group=county_name), alpha=10/length(unique(tsPlotData()$county_name))) + 
@@ -186,12 +203,12 @@ server <- function(input, output, session) {
              subtitle=paste0('Highlighted county: ', input$county))
       if(nrow(tsHighlightData()>0)){
         plt <- plt + geom_line(data=tsHighlightData(), 
-                               aes(group='county_name'))
+                               aes(group='county_name'), color='red')
       }
       if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10('Cases (per 10,0000 persons)')} else {
         plt <- plt + scale_y_continuous('Cases (per 10,000 persons)')
       }
-    } else{
+    } else{ # single county plot
       #browser()
       plt <- ggplot(data=tsHighlightData(),
                     mapping = aes(x=date)) +
@@ -211,11 +228,21 @@ server <- function(input, output, session) {
   }, height=300)
   
   output$table <- renderTable({
-    df <- slope_df %>%
+    df <- out_df %>%
       filter(date== input$DateSelect)
     tab <- table(`growth in last week`=df$growth_c,`rate (per 10,000 persons)`=df$rate_c)
     as.data.frame.matrix(tab)
   }, rownames = TRUE, colnames = TRUE)
+  
+  output$tableText <- renderText({
+#    sprintf("Growth Rate over week prior to %s %s by Number of Cases on %s %s",
+#            month(input$DateSelect, label=TRUE),
+#            day(input$DateSelect),
+#            month(input$DateSelect, label=TRUE),
+#            day(input$DateSelect))
+    paste("Growth Rate over week prior to" , month(input$DateSelect, label=TRUE), day(input$DateSelect), 
+    "by Number of Cases on", month(input$DateSelect, label=TRUE), day(input$DateSelect))
+  })
   
   output$info <- renderPrint({
     #df <- slope_df %>%
@@ -239,4 +266,6 @@ server <- function(input, output, session) {
     #print(input$mapClick)
     #nearPoints(tsPlotData(), input$tsClick, maxpoints = 1)
   })
+  
+
 }

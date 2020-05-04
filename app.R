@@ -40,15 +40,25 @@ county_names <- out_df %>%
 # Calculate last date with cases
 last_date <- max(out_df$date[out_df$total_cases>0], na.rm=TRUE)
 
+# Rescale estimates to have same mean as count
+state_summ_df <- out_df %>%
+  filter(date <= last_date) %>%
+  group_by(state_name) %>%
+  summarise(total_cases = sum(new_cases_mdl, na.rm=TRUE),
+            total_pred = sum(lambda_q50*(pop/1e8), na.rm=TRUE)) %>%
+  mutate(rescale = total_cases / total_pred)
+
+
 out_df <- out_df %>%
+  left_join(state_summ_df, by='state_name') %>%
   group_by(state_name, county_name) %>%
   arrange(date) %>%
   mutate(new_cases_mdl2 = ifelse(is.na(new_cases_mdl), 0, new_cases_mdl)) %>%
   mutate(new_cases_mdl2 = ifelse(date > last_date, NA, new_cases_mdl2)) %>%
   mutate(cum_cases = cumsum(new_cases_mdl2)) %>%
-  mutate(lambda_q50 = ifelse(is.na(new_cases_mdl) & date<last_date, NA, lambda_q50),
-         lambda_q15 = ifelse(is.na(new_cases_mdl) & date<last_date, NA, lambda_q15),
-         lambda_q85 = ifelse(is.na(new_cases_mdl) & date<last_date, NA, lambda_q85)) %>%
+  mutate(lambda_q50 = ifelse(is.na(new_cases_mdl) & date<=last_date, NA, lambda_q50*rescale),
+         lambda_q15 = ifelse(is.na(new_cases_mdl) & date<=last_date, NA, lambda_q15*rescale),
+         lambda_q85 = ifelse(is.na(new_cases_mdl) & date<=last_date, NA, lambda_q85*rescale)) %>%
   mutate(cases_smooth = (cum_cases - lag(cum_cases,7, default = 0)) / 7) %>%
   ungroup()
            
@@ -66,7 +76,7 @@ out_df <- out_df %>%
                         breaks=c(-Inf, .1, .3, 1, 3, 10, Inf),
                         labels = c('< .1', '.1-.3', '.3-1', '1-3', '3-10', '>10' )))
 
-slope_df <- out_df %>%
+out_df <- out_df %>%
   group_by(state_name, county_name) %>%
   arrange(date) %>%
   mutate(growth = (lambda_q50-lag(lambda_q50,7))/lag(lambda_q50,7)) %>%
