@@ -43,9 +43,12 @@ last_date <- max(out_df$date[out_df$total_cases>0], na.rm=TRUE)
 out_df <- out_df %>%
   group_by(state_name, county_name) %>%
   arrange(date) %>%
-  mutate(new_cases_mdl = ifelse(is.na(new_cases_mdl), 0, new_cases_mdl)) %>%
-  mutate(new_cases_mdl = ifelse(date > last_date, NA, new_cases_mdl)) %>%
-  mutate(cum_cases = cumsum(new_cases_mdl)) %>%
+  mutate(new_cases_mdl2 = ifelse(is.na(new_cases_mdl), 0, new_cases_mdl)) %>%
+  mutate(new_cases_mdl2 = ifelse(date > last_date, NA, new_cases_mdl2)) %>%
+  mutate(cum_cases = cumsum(new_cases_mdl2)) %>%
+  mutate(lambda_q50 = ifelse(is.na(new_cases_mdl) & date<last_date, NA, lambda_q50),
+         lambda_q15 = ifelse(is.na(new_cases_mdl) & date<last_date, NA, lambda_q15),
+         lambda_q85 = ifelse(is.na(new_cases_mdl) & date<last_date, NA, lambda_q85)) %>%
   mutate(cases_smooth = (cum_cases - lag(cum_cases,7, default = 0)) / 7) %>%
   ungroup()
            
