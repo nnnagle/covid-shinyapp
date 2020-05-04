@@ -6,6 +6,7 @@ server <- function(input, output, session) {
   library(leaflet)
   library(sf)
   library(shinyWidgets)
+  library(lubridate)
   #browser()
   
   # Change county when state is changed
