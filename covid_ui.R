@@ -75,7 +75,10 @@ ui <- fluidPage(
   HTML('<p>The <strong>raw</strong> estimate are derived directly from the daily counts of cases as reported by the New York Times at a("https://github.com/nytimes/covid-19-data/raw/master/us-counties.csv"). The counts have been modified sligthly by scientists at Oak Ridge National Laboratory when reports do not clealy follow county boundaries.</p>'),
   HTML('<p>The <strong>smoothed</strong> estimate are created by averaging the daily counts over the previous 7 days.'),
   h3("An explanation of uncertainty in the modeled estimates"),
-  HTML('<p>The single county time series chart shows the model as well as confidence intervals. A good analogy for the estimate and confidence intervals are estimates of hurricanes.  During a hurricane, the path of the eye of the storm is predicted.  A "cone of uncertainty" shows our uncertainty about the path that the eye of the storm will follow.  The huuricane, however is much bigger than the eye of the storm.  Similarly, the actualy number of cases may be quite larger than the cone of uncertainty in the time series chart.')
+  HTML('<p>The single county time series chart shows the model as well as confidence intervals. A good analogy for the estimate and confidence intervals are estimates of hurricanes.  During a hurricane, the path of the eye of the storm is predicted.  A "cone of uncertainty" shows our uncertainty about the path that the eye of the storm will follow.  The huuricane, however is much bigger than the eye of the storm.  Similarly, the actualy number of cases may be quite larger than the cone of uncertainty in the time series chart.'),
+  h3("About the authors"),
+  HTML('<p>The app and modeled data were created by Nicholas Nagle and Jesse Piburn. Nicholas Nagle is an Associate Professor in the Department of Geography at University of Tennessee with research expertise in Geographic Data Science and Demography.  Jesse Piburn is a Research Scientist in Geographic Data Sciences at Oak Ridge National Laboratory.</p>'),
+  HTML('<p>For further information or comment, contact Dr. Nicholas Nagle at <a href = "mailto: nnagle@utk.edu">nnagle@utk.edu</a> ')
   )
   )
 )

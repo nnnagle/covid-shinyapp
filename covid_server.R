@@ -195,7 +195,10 @@ server <- function(input, output, session) {
   
   #output$tsPlot <- renderSvgPanZoom({
   output$tsPlot <- renderPlot({
+    #browser()
     if(input$plot_type==tsPlot_type_label[[1]]){ # comparison plot
+      ylims = c(1e-5, min(100, max(tsPlotData()$rate,na.rm=TRUE)))
+      log_ylims = c(1e-5, min(100, max(tsPlotData()$rate,na.rm=TRUE)))
       plt <- ggplot(data = tsPlotData(),
                     mapping = aes(x=date, y=rate, group=county_name))+
         geom_line(aes(group=county_name), alpha=10/length(unique(tsPlotData()$county_name))) + 
@@ -204,13 +207,20 @@ server <- function(input, output, session) {
              subtitle=paste0('Highlighted county: ', input$county))
       if(nrow(tsHighlightData()>0)){
         plt <- plt + geom_line(data=tsHighlightData(), 
-                               aes(group='county_name'), color='red')
+                               aes(group='county_name'), color='red') 
       }
-      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10('Cases (per 10,0000 persons)')} else {
-        plt <- plt + scale_y_continuous('Cases (per 10,000 persons)')
+      if(input$y_scale == 'Log 10'){ 
+        plt <- plt + scale_y_log10('Cases (per 10,0000 persons)', limits=ylims)
+        } else {
+        plt <- plt + scale_y_continuous('Cases (per 10,000 persons)', limits=ylims)
       }
     } else{ # single county plot
       #browser()
+      toppred <- tsHighlightData()$pop[1] * max(tsHighlightData()$lambda_q85/1e8, na.rm=TRUE)
+      topdata <- max(tsHighlightData()$new_cases_mdl, na.rm=TRUE)
+      if(toppred > 1.5*topdata){
+        ylims = c(1e-5, 1.5*topdata)
+        } else ylims = c(1e-5, max(1.5*topdata,1.1*toppred))
       plt <- ggplot(data=tsHighlightData(),
                     mapping = aes(x=date)) +
         geom_line(mapping=aes(y=(lambda_q50/1e8)*pop)) +
@@ -220,8 +230,9 @@ server <- function(input, output, session) {
         geom_point(mapping = aes(y=new_cases_mdl+.01), color='red')+
         geom_vline(xintercept=input$DateSelect) +
         labs(y='Cases', title=paste0('New Cases in ', input$county, ' County, ', input$state))
-      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10('New Cases')} else{
-        plt <- plt + scale_y_continuous('New Cases')
+      if(input$y_scale == 'Log 10'){ plt <- plt + scale_y_log10('New Cases', limits=ylims)
+      } else{
+        plt <- plt + scale_y_continuous('New Cases', limits=ylims)
       }
     }
     plt
