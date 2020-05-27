@@ -7,36 +7,122 @@ server <- function(input, output, session) {
   library(sf)
   library(shinyWidgets)
   library(lubridate)
+  library(plotly)
   #browser()
+  staticData <- geodf %>% left_join(out_df %>%
+                                      filter(date == date[1]))
+  
+  data <- reactiveValues(state='Tennessee',
+                         county='Anderson',
+                         county_list = out_df %>%
+                                       filter(state_name == 'Tennessee') %>%
+                                       select(county_name) %>% 
+                                       unique() %>%
+                                       arrange(county_name) %>%
+                                       pull(county_name) 
+                           )
+  
+  tsPlotData <- reactive({
+    data = out_df %>%
+      filter(state_name== data$state)})
+  
+  tsHighlightData <- reactive({
+    data = tsPlotData() %>%
+      filter(county_name %in% data$county) %>%
+      arrange(date)
+  })
+  
+  ###################################3
+  # Update map data for date and input_layer
+  mapData <- reactive({
+    df <- geodf %>%
+      left_join(out_df %>%
+                  filter(date == input$DateSelect))
+    df <- switch(input$layer,
+                 "Modeled Count" = {
+                   mutate(df, 
+                          fill_layer=rate_c, 
+                          label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>rate</strong>: ", round(rate,3)))
+                 },
+                 "Raw Count" = {
+                   mutate(df, 
+                          fill_layer=count_c, 
+                          label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>count</strong>: ", round(count_n,3))) 
+                 },
+                 "Smoothed Count" = {
+                   mutate(df, 
+                          fill_layer=smooth_c, 
+                          label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>moving average</strong>: ", round(smooth_n,3))) 
+                 },
+                 "Growth Rate" = {
+                   mutate(df,
+                          fill_layer = growth_c,
+                          label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>growth rate</strong>: ", round(100*(growth),1)))
+                 })
+    return(df)
+  })
+  
+#  observeEvent(data$state, {
+#    # Update County names
+#    county_names <- out_df %>%
+#      filter(state_name == data$state) %>%
+#      select(county_name) %>% 
+#      unique() %>%
+#      arrange(county_name) %>%
+#      pull(county_name) 
+#    data$county_list <- county_names
+#    data$county = county_names[1]
+#  })
+  
+  observeEvent(data$county, {
+  })
+  
+  observeEvent(input$state, {
+    data$state = input$state
+  })
+  
+  observeEvent(input$county, {
+    data$county = input$county
+  })
+  
+  observeEvent(event_data('plotly_click'), {
+    d <- event_data('plotly_click')
+    updateSelectInput(session,
+                      inputId='county', 
+                      #choices = data$county_list,
+                      selected=d$key[1])
+  })
   
   # Change county when state is changed
-  observeEvent(input$state,{
-               county_names <- out_df %>%
-                 filter(state_name == input$state) %>%
-                 unique() %>%
-                 arrange(county_name) %>%
-                 pull(county_name)
-               # Check if mouseclick is same as state (don't update if so)
-               x <- input$usPlot_shape_click
-               if(is.null(x)){
-                 updateSelectInput(session,
-                                   inputId='county', 
-                                   choices = county_names )
-               } else{
-                 pt <- st_as_sf(
-                   tibble(LONG = x$lng,
-                          LAT = x$lat),
-                   coords = c("LONG", "LAT"),
-                   crs = 4326)
-                 selection <- suppressMessages(st_join(pt, geodf))
-                 if(selection$state_name[1]!= input$state){
-                   updateSelectInput(session,
-                                     inputId='county', 
-                                     choices = county_names )
-                 }
-               }
-               })
-  
+  # observeEvent(input$state,{
+  #              data$state <- input$state
+  #              # Update County names
+  #              county_names <- out_df %>%
+  #                filter(state_name == input$state) %>%
+  #                unique() %>%
+  #                arrange(county_name) %>%
+  #                pull(county_name)
+  #              # Check if mouseclick is same as state (don't update if so)
+  #              x <- input$usPlot_shape_click
+  #              if(is.null(x)){
+  #                updateSelectInput(session,
+  #                                  inputId='county', 
+  #                                  choices = county_names )
+  #              } else{
+  #                pt <- st_as_sf(
+  #                  tibble(LONG = x$lng,
+  #                         LAT = x$lat),
+  #                  coords = c("LONG", "LAT"),
+  #                  crs = 4326)
+  #                selection <- suppressMessages(st_join(pt, geodf))
+  #                if(selection$state_name[1]!= input$state){
+  #                  updateSelectInput(session,
+  #                                    inputId='county', 
+  #                                    choices = county_names )
+  #                }
+  #              }
+  #              })
+  # 
   # Change state and county on map click
   observeEvent(input$usPlot_shape_click, {
     x <- input$usPlot_shape_click
@@ -46,6 +132,7 @@ server <- function(input, output, session) {
                 LAT = x$lat),
          coords = c("LONG", "LAT"),
          crs = 4326)
+      # overlay pt on spatial data to select region
       selection <- suppressMessages(st_join(pt, geodf))
       #st_name <- selection$state_name[1]
       #shinyjs::runjs("Shiny.setInputValue('state','Tennessee')")
@@ -72,8 +159,7 @@ server <- function(input, output, session) {
     proj4def = "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs",
     resolutions = 2^(14:8))
   
-  staticData <- geodf %>% left_join(out_df %>%
-                                      filter(date == date[1]))
+  
   
   output$usPlot <- renderLeaflet({
     #pal <- colorNumeric("Blues", domain = mapData()$acs_total_pop_e)
@@ -94,35 +180,7 @@ server <- function(input, output, session) {
       fill=FALSE)
   })
   
-  ###################################3
-  # Update map data for date and input_layer
-  mapData <- reactive({
-    df <- geodf %>%
-      left_join(out_df %>%
-                  filter(date == input$DateSelect))
-    df <- switch(input$layer,
-           "Modeled Count" = {
-             mutate(df, 
-                    fill_layer=rate_c, 
-                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>rate</strong>: ", round(rate,3)))
-             },
-           "Raw Count" = {
-             mutate(df, 
-                    fill_layer=count_c, 
-                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>count</strong>: ", round(count_n,3))) 
-             },
-           "Smoothed Count" = {
-             mutate(df, 
-                    fill_layer=smooth_c, 
-                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>moving average</strong>: ", round(smooth_n,3))) 
-             },
-           "Growth Rate" = {
-             mutate(df,
-                    fill_layer = growth_c,
-                    label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>growth rate</strong>: ", round(100*(growth),1)))
-           })
-    return(df)
-  })
+
   
   #####################################################
   # observe (mostly mapData) to update map
@@ -179,19 +237,6 @@ server <- function(input, output, session) {
     
   })
   
-  tsPlotData <- reactive({
-    data = out_df %>%
-      filter(state_name== input$state)})
-  
-  tsHoverData <- reactive({
-    data = nearPoints(tsPlotData(), input$tsHover, maxpoints = 1)
-    if(is.null(nrow(data))) return(NULL) else return(data)
-  })
-  
-  tsHighlightData <- reactive({
-    data = tsPlotData() %>%
-      filter(county_name %in% input$county)
-  })
   
   #output$tsPlot <- renderSvgPanZoom({
   output$tsPlot <- renderPlot({
@@ -235,9 +280,85 @@ server <- function(input, output, session) {
         plt <- plt + scale_y_continuous('New Cases', limits=ylims)
       }
     }
+    plt <- plt + scale_x_date(date_breaks = "2 weeks", date_labels = "%Y/%m/%d")
     plt
     #svgPanZoom(plt, controlIconsEnabled = T)
   }, height=300)
+  
+  plot2 <- reactive({
+    if(input$plot_type==tsPlot_type_label[[1]]){ # comparison plot
+      ylims = c(1e-5, min(100, max(tsPlotData()$rate,na.rm=TRUE)))
+      log_ylims = c(1e-5, min(100, max(tsPlotData()$rate,na.rm=TRUE)))
+      plt <- ggplot(data = tsPlotData(),
+                    mapping = aes(x=date, y=rate, group=county_name,
+                                  text = paste('County: ', county_name),
+                                  key=county_name))+
+        geom_line(aes(), alpha=10/length(unique(tsPlotData()$county_name))) + 
+        geom_vline(xintercept=input$DateSelect) +
+        labs(title=paste0('All counties in ', input$state),
+             subtitle=paste0('Highlighted county: ', input$county))
+      if(nrow(tsHighlightData()>0)){
+        plt <- plt + geom_line(data=tsHighlightData(), 
+                               aes(), color='red') 
+      }
+      if(input$y_scale == 'Log 10'){ 
+        plt <- plt + scale_y_log10('Rate (10^y cases per 10,000 persons)', limits=ylims)
+      } else {
+        plt <- plt + scale_y_continuous('Rate (Cases per 10,000 persons)', limits=ylims)
+      }
+    } else {# Single county plot
+      # Determine reasonable plot limits
+      # Calculate top data point and prediction point
+      toppred <- tsHighlightData()$pop[1] * max(tsHighlightData()$lambda_q85/1e8, na.rm=TRUE)
+      topdata <- max(tsHighlightData()$new_cases_mdl, na.rm=TRUE)
+      if(toppred > 1.5*topdata){
+        ylims = c(1e-4, 1.5*topdata)
+      } else ylims = c(1e-5, max(1.5*topdata,1.1*toppred))
+      plt <- ggplot(data=tsHighlightData() %>% 
+                      mutate(y=(lambda_q50/1e8)*pop,
+                             ymin = (lambda_q15/1e8)*pop,
+                             ymax = (lambda_q85/1e8)*pop) %>%
+                      mutate(ymin = pmin(ymin, ylims[2]),
+                             ymax = pmin(ymax, ylims[2])),
+                    mapping = aes(x=date,
+                                  y = y,
+                                  ymin=ymin, ymax=ymax,
+                                  group=county_name,
+                                  text = paste('New Cases: ', new_cases_mdl))) +
+        geom_point(mapping = aes(y=new_cases_mdl+.01), color='red')+
+        geom_line() +
+        geom_ribbon(aes(group=1),alpha=.25, color=NA) +
+        geom_vline(xintercept=input$DateSelect) +
+        labs(y='Cases', title=paste0('New Cases in ', input$county, ' County, ', input$state))
+      if(input$y_scale == 'Log 10'){ 
+        plt <- plt + scale_y_log10('New Cases (units = 10^y)', limits=ylims) + 
+          annotate('text', x=as_date('2020-04-15'), y=.001, 
+                   label='Zeros have been set to .001')
+      } else{
+        plt <- plt + scale_y_continuous('New Cases', limits=ylims)
+      }
+    }
+    return(plt)
+  })
+  
+  output$tsPlot2 <- renderPlotly({
+    #browser()
+    plt <- plot2() + scale_x_date(date_breaks = "2 weeks", date_labels = "%Y-%m-%d")
+    plt
+    ggplotly(plt, tooltip=c('text'), dynamicTicks=TRUE) %>%
+      config(displaylogo = FALSE,
+             modeBarButtonsToRemove = c(
+               'sendDataToCloud',
+               'toImage',
+               'autoScale2d',
+               'hoverClosestCartesian',
+               'hoverCompareCartesian',
+               'toggleSpikelines'
+             ))
+#      config(displayModeBar = FALSE)
+    #svgPanZoom(plt, controlIconsEnabled = T)
+  })
+  
   
   output$table <- renderTable({
     df <- out_df %>%
@@ -264,6 +385,10 @@ server <- function(input, output, session) {
     print(input$usPlot_shape_click$lng)
     print(is.null(input$usPlot_shape_click))
     print(input$state)
+    print(sprintf('data:State %s', data$state))
+    print(sprintf('data:County %s', data$county))
+    print(event_data('plotly_click'))
+    print(data$county_list)
     if(!is.null(input$usPlot_shape_click)){
       pt <- st_as_sf(
         tibble(LONG = input$usPlot_shape_click$lng,

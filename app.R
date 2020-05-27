@@ -11,6 +11,7 @@ cat(file=stderr(), paste(.libPaths()), "\n")
 library(tidyverse)
 library(sf)
 library(shiny)
+library(plotly)
 library(lubridate)
 
 

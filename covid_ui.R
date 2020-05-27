@@ -4,11 +4,11 @@ require(shinyWidgets)
 ui <- fluidPage(
   
   # Application title
-  titlePanel(h1("COVID-19 Cases",
+  titlePanel(h1("COVID-19 NOWcast",
                 style='background-color:#517c96;
                        color: white;
                        padding-left: 15px;'),
-              windowTitle = 'COVID-19 Cases'),
+              windowTitle = 'COVID-19 Nowcast'),
   tabsetPanel(
   tabPanel("Explore", fluid=TRUE,
   fluidRow(
@@ -37,32 +37,41 @@ ui <- fluidPage(
              mainPanel(
                leafletOutput("usPlot"),
 #               plotOutput("usPlot"),
-               width=11
+               width=12
              )),
            fluidRow(
              column(12,
-                    "These data are New Cases reported per day. Most cases of Covid-19 may go unreported. This is provided in the hope that the number of reported cases may be a useful indicator of disease severity.")
+                    wellPanel(
+                    "The Nowcast is an estimate of the new cases of COVID-19 that are reported each day. Most cases of Covid-19 may go unreported. This is provided in the hope that changes in the number of reported cases may be a useful indicator of changes in disease severity. Owing to differences in how counties and states report cases, the estimates are more valid as time series trends than as comparisons of rates between counties."
+                    ))
            ),
            fluidRow(
-             column(6,
-                    mainPanel(
-                      #svgPanZoomOutput(outputId="tsPlot",
-                      plotOutput("tsPlot", 
-                                 click = "tsClick", 
-                                 hover = hoverOpts(id = "tsHover", delayType = "throttle"),
-                                 height='200px', width='100%')
-                    )),
-             column(6,
-                    textOutput("tableText"),
-                    tableOutput("table"))
+             column(12, 
+               mainPanel(
+                        plotlyOutput("tsPlot2", 
+                        height='400px', width='100%')
+           ))
            ),
+#           fluidRow(
+#             column(6,
+#                    mainPanel(
+#                      #svgPanZoomOutput(outputId="tsPlot",
+#                      plotOutput("tsPlot", 
+#                                 click = "tsClick", 
+#                                 hover = hoverOpts(id = "tsHover", delayType = "throttle"),
+#                                 height='200px', width='100%')
+#                    )),
+#             column(6,
+#                    textOutput("tableText"),
+#                    tableOutput("table"))
+#           ),
     #verbatimTextOutput("info")
   ) )
   ),
   tabPanel("About",fluid=TRUE,
   h3("Purpose"),
   HTML("<p> This app is intended to allow useful comparison and monitoring of small counties during the COVID outbreak. 
-    Small counties are challenging to visualize becuase they are influenced by noise and uncertainty inherit in small counts. This uncertainty may mask underlying trends.</p>"),
+    Small counties are challenging to visualize because they are influenced by noise and uncertainty inherit in small counts. This uncertainty may mask underlying trends.</p>"),
   h3("What's the problem with small counties?"),
   HTML('<p>When places are small, it is hard to estimate the rate of disease. Suppose a place has 5,000 people. 
     There may be 5 days in a row with no reported case (rate = 0 cases per 10,000), and then one suddenly one day with a reported case (rate = 2 cases per 10,000).
@@ -72,7 +81,7 @@ ui <- fluidPage(
   h3("Data"),
   p("The map provides the following types of Covid-19 rate estimates:"),
   HTML("<p>The <strong>modeled</strong> estimate uses our model that attempt to address the small county problem. In instances, you may find counties where the model does not appear to fit the data. This is most likeky because the county is very different than the rest of the state, and the model is choosing to follow state-level trends.</p>"),
-  HTML('<p>The <strong>raw</strong> estimate are derived directly from the daily counts of cases as reported by the New York Times at a("https://github.com/nytimes/covid-19-data/raw/master/us-counties.csv"). The counts have been modified sligthly by scientists at Oak Ridge National Laboratory when reports do not clealy follow county boundaries.</p>'),
+  HTML('<p>The <strong>raw</strong> estimate are derived directly from the daily counts of cases as collected and reported by the New York Times at a("https://github.com/nytimes/covid-19-data/raw/master/us-counties.csv"). Where available, the New York Times has attempted to collect data from local health districts, which may differ from the counts reported by state departments of health, and as reported by the Johns Hopkins dataset at a("https://github.com/CSSEGISandData/COVID-19").  The counts have been modified sligthly by scientists at Oak Ridge National Laboratory when reports do not clealy follow county boundaries.</p>'),
   HTML('<p>The <strong>smoothed</strong> estimate are created by averaging the daily counts over the previous 7 days.'),
   h3("An explanation of uncertainty in the modeled estimates"),
   HTML('<p>The single county time series chart shows the model as well as confidence intervals. A good analogy for the estimate and confidence intervals are estimates of hurricanes.  During a hurricane, the path of the eye of the storm is predicted.  A "cone of uncertainty" shows our uncertainty about the path that the eye of the storm will follow.  The huuricane, however is much bigger than the eye of the storm.  Similarly, the actualy number of cases may be quite larger than the cone of uncertainty in the time series chart.'),
