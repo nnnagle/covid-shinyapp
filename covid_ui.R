@@ -14,7 +14,7 @@ ui <- fluidPage(
   fluidRow(
     column(3,style = "background-color:#e0e0e0",
            wellPanel(
-             selectInput('layer', 'Map Layer', c('Modeled Count', 'Raw Count', 'Smoothed Count', 'Growth Rate' )),
+             selectInput('layer', 'Map Layer', c('Trend Line', 'Raw Count', 'Smoothed Count', 'Growth Rate' )),
              shinyWidgets::setSliderColor(c("#517c96"), c(1)),
              sliderInput("DateSelect",
                          "Date:",
@@ -83,6 +83,8 @@ ui <- fluidPage(
   HTML("<p>The <strong>modeled</strong> estimate uses our model that attempt to address the small county problem. In instances, you may find counties where the model does not appear to fit the data. This is most likeky because the county is very different than the rest of the state, and the model is choosing to follow state-level trends.</p>"),
   HTML('<p>The <strong>raw</strong> estimate are derived directly from the daily counts of cases as collected and reported by the New York Times at a("https://github.com/nytimes/covid-19-data/raw/master/us-counties.csv"). Where available, the New York Times has attempted to collect data from local health districts, which may differ from the counts reported by state departments of health, and as reported by the Johns Hopkins dataset at a("https://github.com/CSSEGISandData/COVID-19").  The counts have been modified sligthly by scientists at Oak Ridge National Laboratory when reports do not clealy follow county boundaries.</p>'),
   HTML('<p>The <strong>smoothed</strong> estimate are created by averaging the daily counts over the previous 7 days.'),
+  h3("The counts here are different that what I've seen from my state?"),
+  HTML('<p>The source data used here for modeling the trend are collected by the New York Times from county health departments whereever possible.  When a patient in a county receives a test, the results are sent by the lab to the county department of health. When the county receives the lab report, this number is then passed on the State Department of Health, which will investigate the case further and verify the address of the patient. This verification can lead to a lag in reporting at the state level. Furthermore, most states will remove the cases of out-of-state patients, even if the patient contracted the disease locally. The purpose of state recording and verification process is to create an authoritative, historical record, not to create a current indicator of daily trends. Most counties will make public health decision on their own counts, not on the state counts. For the purpose of this nowcasting application, county-derived reports may be considered to the most timely, accurate, and suitable for characterizing the present situation</p>'),
   h3("An explanation of uncertainty in the modeled estimates"),
   HTML('<p>The single county time series chart shows the model as well as confidence intervals. A good analogy for the estimate and confidence intervals are estimates of hurricanes.  During a hurricane, the path of the eye of the storm is predicted.  A "cone of uncertainty" shows our uncertainty about the path that the eye of the storm will follow.  The huuricane, however is much bigger than the eye of the storm.  Similarly, the actualy number of cases may be quite larger than the cone of uncertainty in the time series chart.'),
   h3("About the authors"),

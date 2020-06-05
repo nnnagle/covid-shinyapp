@@ -39,7 +39,7 @@ server <- function(input, output, session) {
       left_join(out_df %>%
                   filter(date == input$DateSelect))
     df <- switch(input$layer,
-                 "Modeled Count" = {
+                 "Trend Line" = {
                    mutate(df, 
                           fill_layer=rate_c, 
                           label_layer=paste0("<strong>", state_name, "</strong><br>", county_name, " <br><strong>rate</strong>: ", round(rate,3)))
